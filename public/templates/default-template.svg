@@ -1,0 +1,115 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C59B27" />
+      <stop offset="30%" stop-color="#F2D179" />
+      <stop offset="50%" stop-color="#DEB037" />
+      <stop offset="70%" stop-color="#FCE79D" />
+      <stop offset="100%" stop-color="#A27814" />
+    </linearGradient>
+    <linearGradient id="goldGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#916B0D" />
+      <stop offset="50%" stop-color="#DFB43F" />
+      <stop offset="100%" stop-color="#B6881B" />
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDFBF7" />
+      <stop offset="100%" stop-color="#F7F2E7" />
+    </linearGradient>
+    <radialGradient id="sealGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FCEBB6" />
+      <stop offset="45%" stop-color="#E2B744" />
+      <stop offset="85%" stop-color="#BD8C1B" />
+      <stop offset="100%" stop-color="#8C6307" />
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.15" />
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bgGrad)" />
+
+  <g opacity="0.03" stroke="#0F172A" stroke-width="1.5" fill="none">
+    <circle cx="960" cy="540" r="480" />
+    <circle cx="960" cy="540" r="420" />
+    <circle cx="960" cy="540" r="360" />
+    <circle cx="960" cy="540" r="300" />
+    <circle cx="960" cy="540" r="240" />
+  </g>
+
+  <rect x="40" y="40" width="1840" height="1000" rx="12" fill="none" stroke="#0F172A" stroke-width="6" />
+  <rect x="56" y="56" width="1808" height="968" rx="8" fill="none" stroke="url(#goldGrad)" stroke-width="8" />
+  <rect x="76" y="76" width="1768" height="928" fill="none" stroke="#0F172A" stroke-width="2" stroke-dasharray="8 4" opacity="0.6" />
+
+  <g transform="translate(64, 64)">
+    <path d="M 0,60 Q 30,30 60,0" fill="none" stroke="url(#goldGrad)" stroke-width="5" />
+    <path d="M 12,60 Q 36,36 60,12" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
+    <circle cx="36" cy="36" r="5" fill="url(#goldGrad)" />
+  </g>
+  <g transform="translate(1856, 64) scale(-1, 1)">
+    <path d="M 0,60 Q 30,30 60,0" fill="none" stroke="url(#goldGrad)" stroke-width="5" />
+    <path d="M 12,60 Q 36,36 60,12" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
+    <circle cx="36" cy="36" r="5" fill="url(#goldGrad)" />
+  </g>
+  <g transform="translate(64, 1016) scale(1, -1)">
+    <path d="M 0,60 Q 30,30 60,0" fill="none" stroke="url(#goldGrad)" stroke-width="5" />
+    <path d="M 12,60 Q 36,36 60,12" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
+    <circle cx="36" cy="36" r="5" fill="url(#goldGrad)" />
+  </g>
+  <g transform="translate(1856, 1016) scale(-1, -1)">
+    <path d="M 0,60 Q 30,30 60,0" fill="none" stroke="url(#goldGrad)" stroke-width="5" />
+    <path d="M 12,60 Q 36,36 60,12" fill="none" stroke="url(#goldGrad)" stroke-width="2" />
+    <circle cx="36" cy="36" r="5" fill="url(#goldGrad)" />
+  </g>
+
+  <g transform="translate(960, 160)" text-anchor="middle">
+    <circle cx="0" cy="0" r="26" fill="url(#goldGrad)" />
+    <path d="M0 -18 L5 -5 L18 -5 L8 4 L12 16 L0 8 L-12 16 L-8 4 L-18 -5 L-5 -5 Z" fill="#0F172A" />
+  </g>
+
+  <text x="960" y="240" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="28" font-weight="600" fill="#B6881B" letter-spacing="8">
+    ACADEMIC &amp; PROFESSIONAL EXCELLENCE
+  </text>
+  <text x="960" y="320" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="58" font-weight="700" fill="#0F172A" letter-spacing="12">
+    CERTIFICATE OF ACHIEVEMENT
+  </text>
+  
+  <text x="960" y="380" text-anchor="middle" font-family="'Montserrat', 'Arial', sans-serif" font-size="20" font-weight="400" fill="#64748B" letter-spacing="4">
+    THIS IS PROUDLY PRESENTED TO
+  </text>
+
+  <path d="M 520,570 L 1400,570" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round" />
+  <circle cx="960" cy="570" r="5" fill="url(#goldGrad)" />
+  <circle cx="930" cy="570" r="3" fill="url(#goldGrad)" />
+  <circle cx="990" cy="570" r="3" fill="url(#goldGrad)" />
+
+  <text x="960" y="630" text-anchor="middle" font-family="'Montserrat', 'Arial', sans-serif" font-size="20" font-weight="400" fill="#475569" letter-spacing="1">
+    For outstanding dedication, active participation, and successful completion of the prescribed program requirements.
+  </text>
+
+  <g transform="translate(380, 840)">
+    <line x1="-140" y1="0" x2="140" y2="0" stroke="#0F172A" stroke-width="1.5" opacity="0.4" />
+    <text x="0" y="30" text-anchor="middle" font-family="'Montserrat', 'Arial', sans-serif" font-size="16" font-weight="600" fill="#64748B" letter-spacing="2">
+      DATE OF ISSUANCE
+    </text>
+  </g>
+
+  <g transform="translate(960, 810)" filter="url(#shadow)">
+    <path d="M -25,45 L -45,110 L -25,95 L -5,110 L -12,45 Z" fill="#916B0D" />
+    <path d="M 25,45 L 45,110 L 25,95 L 5,110 L 12,45 Z" fill="#916B0D" />
+    <circle cx="0" cy="0" r="62" fill="url(#goldGrad2)" />
+    <circle cx="0" cy="0" r="54" fill="url(#sealGrad)" stroke="#FFFFFF" stroke-width="2" />
+    <circle cx="0" cy="0" r="44" fill="none" stroke="#0F172A" stroke-width="1.5" stroke-dasharray="3 3" />
+    <text x="0" y="-12" text-anchor="middle" font-family="'Cinzel', serif" font-size="11" font-weight="700" fill="#0F172A" letter-spacing="1">OFFICIAL</text>
+    <text x="0" y="8" text-anchor="middle" font-family="'Cinzel', serif" font-size="13" font-weight="800" fill="#0F172A" letter-spacing="2">SEAL</text>
+    <text x="0" y="24" text-anchor="middle" font-family="'Cinzel', serif" font-size="10" font-weight="700" fill="#0F172A" letter-spacing="1">EXCELLENCE</text>
+  </g>
+
+  <g transform="translate(1540, 840)">
+    <path d="M -90,-25 Q -50,-60 10,-20 T 70,-30" fill="none" stroke="#1E293B" stroke-width="2" opacity="0.75" />
+    <line x1="-140" y1="0" x2="140" y2="0" stroke="#0F172A" stroke-width="1.5" opacity="0.4" />
+    <text x="0" y="30" text-anchor="middle" font-family="'Montserrat', 'Arial', sans-serif" font-size="16" font-weight="600" fill="#64748B" letter-spacing="2">
+      AUTHORIZED SIGNATURE
+    </text>
+  </g>
+</svg>
