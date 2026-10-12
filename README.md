@@ -108,3 +108,70 @@ certificate-generator-next/
 2. In the [Vercel Dashboard](https://vercel.com), click **Add New Project**.
 3. Select this repository and set the root directory to `certificate-generator-next`.
 4. Deploy! No environment variables or external databases are required for basic usage.
+
+---
+
+## 📧 SMTP Provider Setup Guides & URLs
+
+### 1. ✉️ Gmail / Google Workspace (App Password)
+> **Note:** Your regular Google account password will **not** work. Google requires a 16-character App Password.
+
+1. **Enable 2-Step Verification:** [Google 2-Step Verification Settings](https://myaccount.google.com/signinoptions/two-step-verification)
+2. **Generate App Password:** Go directly to [Google App Passwords](https://myaccount.google.com/apppasswords).
+3. Enter app name `Certificate Studio`, click **Create**, and copy the 16-letter code (`xxxx xxxx xxxx xxxx`).
+4. In Certificate Studio SMTP settings:
+   - **Host:** `smtp.gmail.com`
+   - **Port:** `465` (SSL)
+   - **Email / Username:** Your full `@gmail.com` address
+   - **Password:** Paste the 16-character code (spaces are automatically stripped)
+5. [Official Google Support Guide](https://support.google.com/accounts/answer/185833)
+
+### 2. 🚀 Brevo / Sendinblue (Recommended for High Volume • Free 300/day)
+1. **Create Free Account:** [Brevo Sign Up](https://www.brevo.com) (no credit card required).
+2. **Get SMTP Key:** Go directly to [Brevo SMTP Keys](https://app.brevo.com/settings/keys/smtp).
+3. Click **Generate a new SMTP key** or copy Master Key.
+4. In Certificate Studio:
+   - **Host:** `smtp-relay.brevo.com`
+   - **Port:** `587` (STARTTLS)
+   - **Email / Username:** Your Brevo account email
+   - **Password:** Your Brevo SMTP Key
+
+### 3. ⚡ Resend (Developer Relay • Free 3,000/month)
+1. **Create Account:** [Resend.com](https://resend.com)
+2. **Create API Key:** [Resend API Keys Dashboard](https://resend.com/api-keys) with "Sending access".
+3. In Certificate Studio:
+   - **Host:** `smtp.resend.com`
+   - **Port:** `465` (SSL)
+   - **Email / Username:** `resend` (the literal string)
+   - **Password:** Your `re_...` API key
+4. [Resend SMTP Documentation](https://resend.com/docs/dashboard/emails/send-emails-with-smtp)
+
+### 4. 📫 Microsoft Outlook / Office 365
+1. **Personal Accounts (@outlook.com / @hotmail.com):** Turn on 2FA and generate an App Password at [Microsoft Account Security](https://account.live.com/proofs/manage/additional).
+2. **Work / School M365:** Ensure admin has enabled "Authenticated SMTP" in [Microsoft 365 Admin Center](https://admin.microsoft.com).
+3. In Certificate Studio:
+   - **Host:** `smtp.office365.com`
+   - **Port:** `587` (STARTTLS)
+   - **Email / Username:** Your Outlook email
+   - **Password:** Your App Password
+4. [Microsoft POP/IMAP/SMTP Settings Guide](https://support.microsoft.com/en-us/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040)
+
+### 5. 📬 Yahoo Mail
+1. **Account Security:** [Yahoo Account Security](https://login.yahoo.com/account/security)
+2. Click **Generate app password**, name it `Certificate Studio`, and copy the password.
+3. In Certificate Studio:
+   - **Host:** `smtp.mail.yahoo.com`
+   - **Port:** `465` (SSL)
+   - **Email / Username:** Your `@yahoo.com` email
+   - **Password:** Generated app password
+4. [Yahoo App Passwords Guide](https://help.yahoo.com/kb/SLN15241.html)
+
+### 6. 📨 SendGrid (Twilio • Free 100/day)
+1. **Create API Key:** [SendGrid API Keys Dashboard](https://app.sendgrid.com/settings/api_keys)
+2. Set permission to **Mail Send** or **Full Access**.
+3. In Certificate Studio:
+   - **Host:** `smtp.sendgrid.com`
+   - **Port:** `587` (STARTTLS)
+   - **Email / Username:** `apikey` (literal string)
+   - **Password:** Your `SG...` API key
+
