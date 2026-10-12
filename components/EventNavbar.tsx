@@ -56,6 +56,20 @@ export default function EventNavbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close modals on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        if (isNewEventModalOpen) setIsNewEventModalOpen(false);
+        if (isRenameModalOpen) setIsRenameModalOpen(false);
+      }
+    }
+    if (isNewEventModalOpen || isRenameModalOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isNewEventModalOpen, isRenameModalOpen]);
+
   const eventId = event?.id || '';
   const eventName = event?.name || 'Loading Event...';
 
@@ -341,12 +355,25 @@ export default function EventNavbar() {
 
       {/* New Event Modal */}
       {isNewEventModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="clay-card w-full max-w-md p-6 space-y-4">
-            <h3 className="font-bold text-base text-[#1A1A1A] flex items-center space-x-2">
-              <FiPlus className="text-[#D72638]" />
-              <span>Create New Certificate Event</span>
-            </h3>
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setIsNewEventModalOpen(false); }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+        >
+          <div className="clay-card w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto relative my-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-[#1A1A1A] flex items-center space-x-2">
+                <FiPlus className="text-[#D72638]" />
+                <span>Create New Certificate Event</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsNewEventModalOpen(false)}
+                className="w-7 h-7 rounded-full bg-black/5 hover:bg-black/10 text-[#666666] hover:text-[#1A1A1A] flex items-center justify-center text-lg font-bold transition cursor-pointer"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
             <p className="text-xs text-[#666666]">
               Each event holds its own certificate template image, recipient spreadsheet, coordinates, and dispatch logs.
             </p>
@@ -371,13 +398,13 @@ export default function EventNavbar() {
                 <button
                   type="button"
                   onClick={() => setIsNewEventModalOpen(false)}
-                  className="clay-btn-secondary px-4 py-2 text-xs font-bold"
+                  className="clay-btn-secondary px-4 py-2 text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="clay-btn-primary px-5 py-2 text-xs font-bold flex items-center space-x-1.5"
+                  className="clay-btn-primary px-5 py-2 text-xs font-bold flex items-center space-x-1.5 cursor-pointer"
                 >
                   <FiPlus className="text-xs" />
                   <span>Create Event</span>
@@ -390,12 +417,25 @@ export default function EventNavbar() {
 
       {/* Rename Event Modal */}
       {isRenameModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="clay-card w-full max-w-md p-6 space-y-4">
-            <h3 className="font-bold text-base text-[#1A1A1A] flex items-center space-x-2">
-              <FiEdit2 className="text-[#D72638]" />
-              <span>Rename Event</span>
-            </h3>
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setIsRenameModalOpen(false); }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+        >
+          <div className="clay-card w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto relative my-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-[#1A1A1A] flex items-center space-x-2">
+                <FiEdit2 className="text-[#D72638]" />
+                <span>Rename Event</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="w-7 h-7 rounded-full bg-black/5 hover:bg-black/10 text-[#666666] hover:text-[#1A1A1A] flex items-center justify-center text-lg font-bold transition cursor-pointer"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
 
             <form onSubmit={handleRenameEvent} className="space-y-4">
               <div>
@@ -416,13 +456,13 @@ export default function EventNavbar() {
                 <button
                   type="button"
                   onClick={() => setIsRenameModalOpen(false)}
-                  className="clay-btn-secondary px-4 py-2 text-xs font-bold"
+                  className="clay-btn-secondary px-4 py-2 text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="clay-btn-primary px-5 py-2 text-xs font-bold"
+                  className="clay-btn-primary px-5 py-2 text-xs font-bold cursor-pointer"
                 >
                   Save Name
                 </button>

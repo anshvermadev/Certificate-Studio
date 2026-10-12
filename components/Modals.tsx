@@ -30,6 +30,23 @@ import {
 } from 'react-icons/fi';
 import { TbFlask } from 'react-icons/tb';
 
+// Reusable hook for modal escape key dismissal & body scroll locking
+function useModalEscape(isOpen: boolean, onClose: () => void) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = origOverflow;
+    };
+  }, [isOpen, onClose]);
+}
+
 // ==================== SMTP SETTINGS MODAL ====================
 interface SmtpModalProps {
   isOpen: boolean;
@@ -40,6 +57,7 @@ interface SmtpModalProps {
 }
 
 export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpModalProps) {
+  useModalEscape(isOpen, onClose);
   const detectPreset = (cfg: SmtpConfig): string => {
     if (cfg.mockMode) return 'simulation';
     const host = (cfg.host || '').toLowerCase();
@@ -181,10 +199,14 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
   const hasSpacesInPass = form.pass && /\s/.test(form.pass);
 
   return (
-    <div id="smtpModal" className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-2xl w-full overflow-hidden border border-[#E0DEDA] max-h-[92vh] flex flex-col">
+    <div
+      id="smtpModal"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
+      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-2xl w-full max-h-[90vh] overflow-hidden border border-[#E0DEDA] flex flex-col my-auto">
         {/* Bold Red Window Header Strip with 3 Decorative Dots */}
-        <div className="bg-[#D72638] px-5 sm:px-6 py-3.5 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)]">
+        <div className="bg-[#D72638] px-5 sm:px-6 py-3.5 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)] flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
@@ -199,7 +221,7 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-black/15 hover:bg-black/25 text-white flex items-center justify-center text-lg font-bold transition"
+            className="w-8 h-8 rounded-full bg-black/15 hover:bg-black/30 active:scale-95 text-white flex items-center justify-center text-xl font-bold transition cursor-pointer"
             aria-label="Close"
           >
             &times;
@@ -843,33 +865,33 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
               </Tooltip>
             </div>
           </div>
+        </div>
 
-          {/* Modal Footer */}
-          <div className="flex items-center justify-between pt-3 border-t border-[#E0DEDA]">
-            <span className="text-[10px] text-[#666666]">
-              {preset === 'simulation' ? '🧪 Mock mode active' : `⚡ Provider: ${preset}`}
-            </span>
-            <div className="flex items-center space-x-2">
+        {/* Pinned Modal Footer */}
+        <div className="px-5 sm:px-6 py-3 bg-[#FAF9F5] border-t border-[#E0DEDA] flex items-center justify-between flex-shrink-0">
+          <span className="text-[10px] text-[#666666]">
+            {preset === 'simulation' ? '🧪 Mock mode active' : `⚡ Provider: ${preset}`}
+          </span>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              id="btnCancelSmtpModal"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <Tooltip content="Apply and save SMTP configuration to event" position="top">
               <button
                 type="button"
-                id="btnCancelSmtpModal"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition"
+                id="btnSaveSmtpSettings"
+                onClick={handleSave}
+                className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center gap-1.5 cursor-pointer"
               >
-                Cancel
+                <FiCheck className="text-sm" />
+                <span>Save Configuration</span>
               </button>
-              <Tooltip content="Apply and save SMTP configuration to event" position="top">
-                <button
-                  type="button"
-                  id="btnSaveSmtpSettings"
-                  onClick={handleSave}
-                  className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center gap-1.5"
-                >
-                  <FiCheck className="text-sm" />
-                  <span>Save Configuration</span>
-                </button>
-              </Tooltip>
-            </div>
+            </Tooltip>
           </div>
         </div>
       </div>
@@ -886,6 +908,7 @@ interface TemplateModalProps {
 }
 
 export function EmailTemplateModal({ isOpen, onClose, emailTemplate, onSave }: TemplateModalProps) {
+  useModalEscape(isOpen, onClose);
   const [subject, setSubject] = useState<string>(emailTemplate.subject);
   const [body, setBody] = useState<string>(emailTemplate.body);
 
@@ -897,10 +920,14 @@ export function EmailTemplateModal({ isOpen, onClose, emailTemplate, onSave }: T
   if (!isOpen) return null;
 
   return (
-    <div id="emailTemplateModal" className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-xl w-full overflow-hidden border border-[#E0DEDA] flex flex-col">
+    <div
+      id="emailTemplateModal"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
+      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-xl w-full max-h-[90vh] overflow-hidden border border-[#E0DEDA] flex flex-col my-auto">
         {/* Bold Red Window Header Strip with 3 Decorative Dots */}
-        <div className="bg-[#D72638] px-6 py-4 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)]">
+        <div className="bg-[#D72638] px-5 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)] flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
@@ -909,20 +936,22 @@ export function EmailTemplateModal({ isOpen, onClose, emailTemplate, onSave }: T
             </div>
             <div className="flex items-center space-x-2 text-white ml-2">
               <FiMail className="text-lg text-white" />
-              <h3 className="font-bold text-base leading-tight tracking-wide">Customize Email Message</h3>
+              <h3 className="font-bold text-sm sm:text-base leading-tight tracking-wide">Customize Email Message</h3>
             </div>
           </div>
           <button
             type="button"
             id="btnCloseTemplateModal"
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-black/15 hover:bg-black/25 text-white flex items-center justify-center text-lg font-bold transition"
+            className="w-8 h-8 rounded-full bg-black/15 hover:bg-black/30 active:scale-95 text-white flex items-center justify-center text-xl font-bold transition cursor-pointer"
+            aria-label="Close"
           >
             &times;
           </button>
         </div>
 
-        <div className="p-6 space-y-4 text-xs">
+        {/* Scrollable Body Content */}
+        <div className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
           <div>
             <label className="block font-bold text-[#1A1A1A] mb-1.5">Email Subject Line</label>
             <input
@@ -930,24 +959,24 @@ export function EmailTemplateModal({ isOpen, onClose, emailTemplate, onSave }: T
               id="inputEmailSubject"
               value={subject}
               onChange={e => setSubject(e.target.value)}
-              className="w-full clay-inset p-3 font-semibold"
+              className="w-full clay-inset p-2.5 sm:p-3 font-semibold"
             />
           </div>
 
           <div>
-            <div className="flex justify-between items-center mb-1.5">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 mb-1.5">
               <label className="font-bold text-[#1A1A1A]">Email Message Body</label>
-              <span className="text-[11px] text-[#777777]">
-                Empty lines &amp; breaks preserved 1:1. Placeholders: <code>{'{name}'}</code>, <code>{'{date}'}</code>, <code>{'{id}'}</code>
+              <span className="text-[10px] sm:text-[11px] text-[#777777]">
+                Empty lines preserved 1:1. Placeholders: <code>{'{name}'}</code>, <code>{'{date}'}</code>, <code>{'{id}'}</code>
               </span>
             </div>
             <textarea
               id="inputEmailBody"
-              rows={7}
+              rows={4}
               value={body}
               onChange={e => setBody(e.target.value)}
               placeholder="Dear {name},&#10;&#10;Congratulations! Please find attached your verified certificate.&#10;&#10;Certificate ID: {id}&#10;Issue Date: {date}"
-              className="w-full clay-inset p-3 font-mono text-xs leading-relaxed"
+              className="w-full clay-inset p-2.5 sm:p-3 font-mono text-xs leading-relaxed"
             />
           </div>
 
@@ -957,7 +986,7 @@ export function EmailTemplateModal({ isOpen, onClose, emailTemplate, onSave }: T
               <span>Delivery Appearance Preview (Recipient Inbox)</span>
               <span className="text-[10px] text-[#888888] font-normal">Clean standard text formatting</span>
             </div>
-            <div className="bg-white rounded-lg p-3 border border-[#EBE8E2] space-y-2 text-[#111111] font-sans text-xs shadow-inner">
+            <div className="bg-white rounded-lg p-3 border border-[#EBE8E2] space-y-2 text-[#111111] font-sans text-xs shadow-inner max-h-40 overflow-y-auto">
               <div className="text-[11px] text-[#666666] pb-1.5 border-b border-[#F0EEEA]">
                 <span className="font-bold text-[#333333]">Subject: </span>
                 {subject
@@ -965,7 +994,7 @@ export function EmailTemplateModal({ isOpen, onClose, emailTemplate, onSave }: T
                   .replace(/\{id\}|\{\{id\}\}/gi, 'CERT-2026-001')
                   .replace(/\{date\}|\{\{date\}\}/gi, '04/09/2026') || '(No Subject)'}
               </div>
-              <div className="space-y-3 pt-1">
+              <div className="space-y-2 pt-1 text-[11px]">
                 {(body || '')
                   .replace(/\{name\}|\{\{name\}\}/gi, 'Alex Johnson')
                   .replace(/\{id\}|\{\{id\}\}/gi, 'CERT-2026-001')
@@ -990,12 +1019,19 @@ export function EmailTemplateModal({ isOpen, onClose, emailTemplate, onSave }: T
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#E0DEDA]">
+        {/* Pinned Modal Footer */}
+        <div className="px-5 sm:px-6 py-3 bg-[#FAF9F5] border-t border-[#E0DEDA] flex items-center justify-between flex-shrink-0">
+          <span className="text-[11px] text-[#888888] hidden sm:inline">
+            Press <kbd className="px-1.5 py-0.5 rounded bg-[#EDE8E1] text-[10px] font-mono">Esc</kbd> or click outside to close
+          </span>
+          <div className="flex items-center space-x-2 ml-auto">
             <button
               type="button"
+              id="btnCancelEmailTemplate"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition"
+              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition cursor-pointer"
             >
               Cancel
             </button>
@@ -1007,9 +1043,10 @@ export function EmailTemplateModal({ isOpen, onClose, emailTemplate, onSave }: T
                   onSave({ subject, body });
                   onClose();
                 }}
-                className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow"
+                className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center gap-1.5 cursor-pointer"
               >
-                Save Template
+                <FiCheck className="text-sm" />
+                <span>Save Template</span>
               </button>
             </Tooltip>
           </div>
@@ -1029,6 +1066,7 @@ interface AddRecipientModalProps {
 }
 
 export function AddRecipientModal({ isOpen, onClose, nextId, prefix = 'CERT-', onAdd }: AddRecipientModalProps) {
+  useModalEscape(isOpen, onClose);
   const [isSplit, setIsSplit] = useState<boolean>(false);
   const [fullName, setFullName] = useState<string>('');
   const [firstName, setFirstName] = useState<string>('');
@@ -1087,10 +1125,14 @@ export function AddRecipientModal({ isOpen, onClose, nextId, prefix = 'CERT-', o
   };
 
   return (
-    <div id="addRecipientModal" className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-md w-full overflow-hidden border border-[#E0DEDA] flex flex-col">
+    <div
+      id="addRecipientModal"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
+      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-md w-full max-h-[90vh] overflow-hidden border border-[#E0DEDA] flex flex-col my-auto">
         {/* Bold Red Window Header Strip with 3 Decorative Dots */}
-        <div className="bg-[#D72638] px-6 py-4 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)]">
+        <div className="bg-[#D72638] px-5 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)] flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
@@ -1099,20 +1141,21 @@ export function AddRecipientModal({ isOpen, onClose, nextId, prefix = 'CERT-', o
             </div>
             <div className="flex items-center space-x-2 text-white ml-2">
               <FiUser className="text-lg text-white" />
-              <h3 className="font-bold text-base leading-tight tracking-wide">Add Member / Recipient</h3>
+              <h3 className="font-bold text-sm sm:text-base leading-tight tracking-wide">Add Member / Recipient</h3>
             </div>
           </div>
           <button
             type="button"
             id="btnCloseAddRecipientModal"
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-black/15 hover:bg-black/25 text-white flex items-center justify-center text-lg font-bold transition"
+            className="w-8 h-8 rounded-full bg-black/15 hover:bg-black/30 active:scale-95 text-white flex items-center justify-center text-xl font-bold transition cursor-pointer"
+            aria-label="Close"
           >
             &times;
           </button>
         </div>
 
-        <div className="p-6 space-y-4 text-xs">
+        <div className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
           {/* Name Format Toggle */}
           <div className="flex items-center space-x-4 clay-inset p-2.5">
             <label className="flex items-center space-x-2 cursor-pointer">
@@ -1265,12 +1308,19 @@ export function AddRecipientModal({ isOpen, onClose, nextId, prefix = 'CERT-', o
             />
           </div>
 
-          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#E0DEDA]">
+        </div>
+
+        {/* Pinned Modal Footer */}
+        <div className="px-5 sm:px-6 py-3 bg-[#FAF9F5] border-t border-[#E0DEDA] flex items-center justify-between flex-shrink-0">
+          <span className="text-[11px] text-[#888888] hidden sm:inline">
+            Press <kbd className="px-1.5 py-0.5 rounded bg-[#EDE8E1] text-[10px] font-mono">Esc</kbd> to close
+          </span>
+          <div className="flex items-center space-x-2 ml-auto">
             <button
               type="button"
               id="btnCancelAddRecipient"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition"
+              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition cursor-pointer"
             >
               Cancel
             </button>
@@ -1279,7 +1329,7 @@ export function AddRecipientModal({ isOpen, onClose, nextId, prefix = 'CERT-', o
                 type="button"
                 id="btnSaveNewRecipient"
                 onClick={handleSubmit}
-                className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center space-x-1.5"
+                className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center space-x-1.5 cursor-pointer"
               >
                 <FiPlus className="text-sm" />
                 <span>Add Member</span>
@@ -1301,6 +1351,7 @@ interface EditRecipientModalProps {
 }
 
 export function EditRecipientModal({ isOpen, onClose, recipient, onSave }: EditRecipientModalProps) {
+  useModalEscape(isOpen, onClose);
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [certId, setCertId] = useState<string>('');
@@ -1336,23 +1387,43 @@ export function EditRecipientModal({ isOpen, onClose, recipient, onSave }: EditR
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="clay-modal max-w-md w-full overflow-hidden">
-        <div className="clay-modal-header p-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-white">
-            <FiEdit2 className="text-base" />
-            <h3 className="font-bold text-sm">Edit Recipient Details</h3>
+    <div
+      id="editRecipientModal"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
+      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-md w-full max-h-[90vh] overflow-hidden border border-[#E0DEDA] flex flex-col my-auto">
+        {/* Bold Red Window Header Strip */}
+        <div className="bg-[#D72638] px-5 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)] flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
+            </div>
+            <div className="flex items-center space-x-2 text-white ml-2">
+              <FiEdit2 className="text-lg text-white" />
+              <h3 className="font-bold text-sm sm:text-base leading-tight tracking-wide">Edit Recipient Details</h3>
+            </div>
           </div>
-          <button type="button" onClick={onClose} className="text-white hover:opacity-80 text-xl font-bold leading-none">
+          <button
+            type="button"
+            id="btnCloseEditRecipientModal"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-black/15 hover:bg-black/30 active:scale-95 text-white flex items-center justify-center text-xl font-bold transition cursor-pointer"
+            aria-label="Close"
+          >
             &times;
           </button>
         </div>
 
-        <div className="p-6 space-y-4 text-xs">
+        {/* Scrollable Body Content */}
+        <div className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
           <div>
             <label className="block font-bold text-[#1A1A1A] mb-1">Full Name</label>
             <input
               type="text"
+              id="inputEditFullName"
               value={name}
               onChange={e => setName(e.target.value)}
               className="w-full clay-inset p-2.5 font-bold text-[#1A1A1A]"
@@ -1363,6 +1434,7 @@ export function EditRecipientModal({ isOpen, onClose, recipient, onSave }: EditR
             <label className="block font-bold text-[#1A1A1A] mb-1">Email Address</label>
             <input
               type="email"
+              id="inputEditEmail"
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full clay-inset p-2.5 font-medium text-[#1A1A1A]"
@@ -1374,6 +1446,7 @@ export function EditRecipientModal({ isOpen, onClose, recipient, onSave }: EditR
               <label className="block font-bold text-[#1A1A1A] mb-1">Certificate ID</label>
               <input
                 type="text"
+                id="inputEditCertId"
                 value={certId}
                 onChange={e => setCertId(e.target.value)}
                 className="w-full clay-inset p-2.5 font-mono font-bold text-[#1A1A1A]"
@@ -1383,6 +1456,7 @@ export function EditRecipientModal({ isOpen, onClose, recipient, onSave }: EditR
               <label className="block font-bold text-[#1A1A1A] mb-1">Issue Date</label>
               <input
                 type="text"
+                id="inputEditDate"
                 value={date}
                 onChange={e => setDate(e.target.value)}
                 placeholder="dd/mm/yyyy"
@@ -1395,24 +1469,33 @@ export function EditRecipientModal({ isOpen, onClose, recipient, onSave }: EditR
             <label className="block font-bold text-[#1A1A1A] mb-1">Course / Program (Optional)</label>
             <input
               type="text"
+              id="inputEditCourse"
               value={course}
               onChange={e => setCourse(e.target.value)}
               className="w-full clay-inset p-2.5 font-medium text-[#1A1A1A]"
             />
           </div>
+        </div>
 
-          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#E0DEDA]">
+        {/* Pinned Modal Footer */}
+        <div className="px-5 sm:px-6 py-3 bg-[#FAF9F5] border-t border-[#E0DEDA] flex items-center justify-between flex-shrink-0">
+          <span className="text-[11px] text-[#888888] hidden sm:inline">
+            Press <kbd className="px-1.5 py-0.5 rounded bg-[#EDE8E1] text-[10px] font-mono">Esc</kbd> to close
+          </span>
+          <div className="flex items-center space-x-2 ml-auto">
             <button
               type="button"
+              id="btnCancelEditRecipient"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition"
+              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
+              id="btnSaveEditRecipient"
               onClick={handleSave}
-              className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center space-x-1.5"
+              className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center space-x-1.5 cursor-pointer"
             >
               <FiCheck className="text-sm" />
               <span>Save Changes</span>
@@ -1440,6 +1523,7 @@ export function FormatCertIdModal({
   recipients,
   onApply
 }: FormatCertIdModalProps) {
+  useModalEscape(isOpen, onClose);
   const [prefix, setPrefix] = useState<string>(currentPrefix || 'CERT-');
   const [strategy, setStrategy] = useState<'format_existing' | 'sequential'>('format_existing');
   const [startNum, setStartNum] = useState<number>(1);
@@ -1473,19 +1557,38 @@ export function FormatCertIdModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="clay-modal max-w-lg w-full overflow-hidden">
-        <div className="clay-modal-header p-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-white">
-            <FiHash className="text-base" />
-            <h3 className="font-bold text-sm">Certificate ID Format &amp; Prefix</h3>
+    <div
+      id="formatCertIdModal"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+    >
+      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-lg w-full max-h-[90vh] overflow-hidden border border-[#E0DEDA] flex flex-col my-auto">
+        {/* Bold Red Window Header Strip */}
+        <div className="bg-[#D72638] px-5 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)] flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
+            </div>
+            <div className="flex items-center space-x-2 text-white ml-2">
+              <FiHash className="text-lg text-white" />
+              <h3 className="font-bold text-sm sm:text-base leading-tight tracking-wide">Certificate ID Format &amp; Prefix</h3>
+            </div>
           </div>
-          <button type="button" onClick={onClose} className="text-white hover:opacity-80 text-xl font-bold leading-none">
+          <button
+            type="button"
+            id="btnCloseFormatCertIdModal"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-black/15 hover:bg-black/30 active:scale-95 text-white flex items-center justify-center text-xl font-bold transition cursor-pointer"
+            aria-label="Close"
+          >
             &times;
           </button>
         </div>
 
-        <div className="p-6 space-y-4 text-xs">
+        {/* Scrollable Body Content */}
+        <div className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
           {/* Prefix Input */}
           <div>
             <label className="block font-bold text-[#1A1A1A] mb-1">
@@ -1503,7 +1606,7 @@ export function FormatCertIdModal({
               <button
                 type="button"
                 onClick={() => setPrefix('CERT-')}
-                className="clay-btn-secondary px-3 py-2 text-xs font-bold whitespace-nowrap"
+                className="clay-btn-secondary px-3 py-2 text-xs font-bold whitespace-nowrap cursor-pointer"
               >
                 Reset CERT-
               </button>
@@ -1531,7 +1634,7 @@ export function FormatCertIdModal({
                     name="idStrategy"
                     checked={strategy === 'format_existing'}
                     onChange={() => setStrategy('format_existing')}
-                    className="text-[#D72638]"
+                    className="accent-[#D72638]"
                   />
                   <span>Format Spreadsheet Numbers</span>
                 </div>
@@ -1554,7 +1657,7 @@ export function FormatCertIdModal({
                     name="idStrategy"
                     checked={strategy === 'sequential'}
                     onChange={() => setStrategy('sequential')}
-                    className="text-[#D72638]"
+                    className="accent-[#D72638]"
                   />
                   <span>Fresh Sequential Numbers</span>
                 </div>
@@ -1616,12 +1719,19 @@ export function FormatCertIdModal({
               ))}
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#E0DEDA]">
+        {/* Pinned Modal Footer */}
+        <div className="px-5 sm:px-6 py-3 bg-[#FAF9F5] border-t border-[#E0DEDA] flex items-center justify-between flex-shrink-0">
+          <span className="text-[11px] text-[#888888] hidden sm:inline">
+            Press <kbd className="px-1.5 py-0.5 rounded bg-[#EDE8E1] text-[10px] font-mono">Esc</kbd> to close
+          </span>
+          <div className="flex items-center space-x-2 ml-auto">
             <button
               type="button"
+              id="btnCancelCertIdFormat"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition"
+              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition cursor-pointer"
             >
               Cancel
             </button>
@@ -1629,7 +1739,7 @@ export function FormatCertIdModal({
               type="button"
               id="btnApplyCertIdFormat"
               onClick={handleApply}
-              className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center space-x-1.5"
+              className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center space-x-1.5 cursor-pointer"
             >
               <FiCheck className="text-sm" />
               <span>Apply to All Recipients</span>
