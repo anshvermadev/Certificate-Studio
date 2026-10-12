@@ -5,7 +5,30 @@ import { SmtpConfig, EmailTemplate, Recipient } from '@/types';
 import ClayDropdown from './ClayDropdown';
 import Tooltip from './Tooltip';
 import { formatDateDDMMYYYY, getTodayDDMMYYYY, toHtmlDateInputValue } from '@/lib/date';
-import { FiSettings, FiMail, FiUser, FiCalendar, FiPlus, FiInfo, FiHash, FiEdit2, FiCheck, FiSliders } from 'react-icons/fi';
+import {
+  FiSettings,
+  FiMail,
+  FiUser,
+  FiCalendar,
+  FiPlus,
+  FiInfo,
+  FiHash,
+  FiEdit2,
+  FiCheck,
+  FiSliders,
+  FiExternalLink,
+  FiHelpCircle,
+  FiBookOpen,
+  FiKey,
+  FiChevronDown,
+  FiChevronUp,
+  FiShield,
+  FiZap,
+  FiCheckCircle,
+  FiAlertTriangle,
+  FiSend
+} from 'react-icons/fi';
+import { TbFlask } from 'react-icons/tb';
 
 // ==================== SMTP SETTINGS MODAL ====================
 interface SmtpModalProps {
@@ -17,14 +40,27 @@ interface SmtpModalProps {
 }
 
 export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpModalProps) {
+  const detectPreset = (cfg: SmtpConfig): string => {
+    if (cfg.mockMode) return 'simulation';
+    const host = (cfg.host || '').toLowerCase();
+    if (host.includes('gmail.com')) return 'gmail';
+    if (host.includes('brevo.com') || host.includes('sendinblue')) return 'brevo';
+    if (host.includes('resend.com')) return 'resend';
+    if (host.includes('office365.com') || host.includes('outlook.com')) return 'outlook';
+    if (host.includes('yahoo.com')) return 'yahoo';
+    if (host.includes('sendgrid.com')) return 'sendgrid';
+    return 'custom';
+  };
+
   const [form, setForm] = useState<SmtpConfig>(smtpConfig);
-  const [preset, setPreset] = useState<string>(smtpConfig.mockMode ? 'simulation' : 'gmail');
+  const [preset, setPreset] = useState<string>(detectPreset(smtpConfig));
   const [testEmail, setTestEmail] = useState<string>('');
   const [isTesting, setIsTesting] = useState<boolean>(false);
+  const [showAllGuides, setShowAllGuides] = useState<boolean>(false);
 
   useEffect(() => {
     setForm(smtpConfig);
-    setPreset(smtpConfig.mockMode ? 'simulation' : 'gmail');
+    setPreset(detectPreset(smtpConfig));
   }, [smtpConfig, isOpen]);
 
   if (!isOpen) return null;
@@ -40,6 +76,23 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
         host: 'smtp.gmail.com',
         port: 465,
         secure: true
+      }));
+    } else if (val === 'brevo') {
+      setForm(prev => ({
+        ...prev,
+        mockMode: false,
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        secure: false
+      }));
+    } else if (val === 'resend') {
+      setForm(prev => ({
+        ...prev,
+        mockMode: false,
+        host: 'smtp.resend.com',
+        port: 465,
+        secure: true,
+        user: prev.user && prev.user !== 'apikey' ? prev.user : 'resend'
       }));
     } else if (val === 'outlook') {
       setForm(prev => ({
@@ -57,20 +110,45 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
         port: 465,
         secure: true
       }));
+    } else if (val === 'sendgrid') {
+      setForm(prev => ({
+        ...prev,
+        mockMode: false,
+        host: 'smtp.sendgrid.com',
+        port: 587,
+        secure: false,
+        user: 'apikey'
+      }));
+    } else if (val === 'custom') {
+      setForm(prev => ({
+        ...prev,
+        mockMode: false
+      }));
     }
+  };
+
+  const cleanPassword = (raw: string, isGmail: boolean) => {
+    if (!raw) return '';
+    return isGmail ? raw.replace(/\s+/g, '') : raw.trim();
   };
 
   const handleTestConnection = async () => {
     setIsTesting(true);
     try {
+      const cleanedPass = cleanPassword(form.pass, preset === 'gmail');
+      const payload = {
+        ...form,
+        pass: cleanedPass,
+        user: form.user.trim(),
+        host: form.host.trim(),
+        mockMode: preset === 'simulation',
+        testEmail: testEmail.trim()
+      };
+
       const res = await fetch('/api/test-smtp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          mockMode: preset === 'simulation',
-          testEmail
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
@@ -89,18 +167,24 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
   };
 
   const handleSave = () => {
+    const cleanedPass = cleanPassword(form.pass, preset === 'gmail');
     onSave({
       ...form,
+      pass: cleanedPass,
+      user: form.user.trim(),
+      host: form.host.trim(),
       mockMode: preset === 'simulation'
     });
     onClose();
   };
 
+  const hasSpacesInPass = form.pass && /\s/.test(form.pass);
+
   return (
-    <div id="smtpModal" className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-lg w-full overflow-hidden border border-[#E0DEDA] max-h-[90vh] flex flex-col">
+    <div id="smtpModal" className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-[#FAFAF8] rounded-[24px] shadow-[10px_10px_32px_rgba(0,0,0,0.25),-6px_-6px_20px_rgba(255,255,255,0.95)] max-w-2xl w-full overflow-hidden border border-[#E0DEDA] max-h-[92vh] flex flex-col">
         {/* Bold Red Window Header Strip with 3 Decorative Dots */}
-        <div className="bg-[#D72638] px-6 py-4 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)]">
+        <div className="bg-[#D72638] px-5 sm:px-6 py-3.5 flex items-center justify-between shadow-[0_4px_10px_rgba(215,38,56,0.3)]">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-white/60 shadow-inner"></span>
@@ -109,58 +193,543 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
             </div>
             <div className="flex items-center space-x-2 text-white ml-2">
               <FiSettings className="text-lg text-white" />
-              <h3 className="font-bold text-base leading-tight tracking-wide">Email & SMTP Configuration</h3>
+              <h3 className="font-bold text-sm sm:text-base leading-tight tracking-wide">Email & SMTP Setup Guide</h3>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="w-7 h-7 rounded-full bg-black/15 hover:bg-black/25 text-white flex items-center justify-center text-lg font-bold transition"
+            aria-label="Close"
           >
             &times;
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           {/* Presets Selector */}
           <div>
-            <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5">Email Provider Preset:</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-[#1A1A1A]">Select Your Email Provider:</label>
+              <button
+                type="button"
+                onClick={() => setShowAllGuides(!showAllGuides)}
+                className="text-[11px] font-bold text-[#D72638] hover:underline flex items-center gap-1"
+              >
+                <FiBookOpen className="w-3 h-3" />
+                <span>{showAllGuides ? 'Hide All Guides' : 'Browse All Provider Guides & URLs'}</span>
+                {showAllGuides ? <FiChevronUp className="w-3 h-3" /> : <FiChevronDown className="w-3 h-3" />}
+              </button>
+            </div>
             <ClayDropdown
               id="smtpPresetSelect"
               value={preset}
               onChange={val => handlePresetChange(val)}
               options={[
-                { value: 'simulation', label: 'Simulation / Mock Mode (Test without real credentials)' },
-                { value: 'gmail', label: 'Gmail (App Password)' },
-                { value: 'outlook', label: 'Outlook / Microsoft 365' },
-                { value: 'yahoo', label: 'Yahoo Mail' },
-                { value: 'custom', label: 'Custom SMTP Server' }
+                { value: 'simulation', label: '🧪 Simulation / Mock Mode (Test safely without real credentials)' },
+                { value: 'gmail', label: '✉️ Gmail / Google Workspace (16-char App Password)' },
+                { value: 'brevo', label: '🚀 Brevo / Sendinblue (Recommended • Free 300 emails/day)' },
+                { value: 'resend', label: '⚡ Resend (Developer Relay • Free 3,000/month)' },
+                { value: 'outlook', label: '📫 Outlook / Microsoft 365 (Port 587)' },
+                { value: 'yahoo', label: '📬 Yahoo Mail (App Password)' },
+                { value: 'sendgrid', label: '📨 SendGrid (Twilio • Free 100/day)' },
+                { value: 'custom', label: '⚙️ Custom SMTP Server' }
               ]}
             />
           </div>
 
-          {/* Gmail App Password Guide Alert */}
-          {preset === 'gmail' && (
-            <div id="gmailTipBox" className="p-3.5 clay-inset space-y-1 text-xs text-[#1A1A1A]">
-              <p className="font-bold text-[#D72638] flex items-center gap-1.5">
-                <FiInfo className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>Gmail Setup Tip:</span>
-              </p>
-              <p className="text-[#555555]">
-                For Gmail, use your regular email address and a 16-character <b>Google App Password</b> (generated from your Google Account &gt; Security &gt; 2-Step Verification &gt; App Passwords).
+          {/* ========================================================= */}
+          {/* DYNAMIC SETUP GUIDE WITH DIRECT LINKS FOR ACTIVE PRESET  */}
+          {/* ========================================================= */}
+
+          {preset === 'simulation' && (
+            <div className="p-3.5 clay-inset bg-[#F6F5F2] border border-[#E0DEDA] rounded-xl space-y-1.5 text-xs text-[#1A1A1A]">
+              <div className="flex items-center gap-2 font-bold text-[#1A1A1A]">
+                <TbFlask className="w-4 h-4 text-[#D72638]" />
+                <span>Simulation / Mock Mode Active</span>
+              </div>
+              <p className="text-[11px] text-[#555555] leading-relaxed">
+                No external SMTP server or email password required. Certificates and PDFs are generated normally, and dispatch is logged in real-time in the terminal with realistic timing. Great for testing layouts and bulk queuing safely before sending live emails.
               </p>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
+          {preset === 'gmail' && (
+            <div id="gmailGuideBox" className="p-3.5 clay-inset bg-[#FFFDF9] border border-[#F2DEB0] rounded-xl space-y-2.5 text-xs text-[#1A1A1A]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-[#B45309]">
+                  <FiKey className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Gmail Step-by-Step Setup Guide</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-[#FEF3C7] text-[#92400E] px-2 py-0.5 rounded-full border border-[#FDE68A]">
+                  App Password Required
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] text-[#444444] leading-relaxed">
+                <p>
+                  <b>1. Turn ON 2-Step Verification:</b> Google requires 2-Step Verification before enabling app passwords.
+                </p>
+                <div className="pl-4">
+                  <a
+                    href="https://myaccount.google.com/signinoptions/two-step-verification"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#D72638] hover:underline"
+                  >
+                    <span>Open Google 2-Step Verification</span>
+                    <FiExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <p>
+                  <b>2. Generate a 16-character App Password:</b>
+                </p>
+                <div className="pl-4 space-y-1">
+                  <a
+                    href="https://myaccount.google.com/apppasswords"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#15803D] bg-green-50 px-2 py-0.5 rounded border border-green-200 hover:bg-green-100"
+                  >
+                    <FiKey className="w-3 h-3" />
+                    <span>Generate Google App Password Here</span>
+                    <FiExternalLink className="w-3 h-3" />
+                  </a>
+                  <p className="text-[10px] text-[#666666]">
+                    Enter app name (e.g. <i>Certificate Studio</i>) &rarr; click <b>Create</b> &rarr; copy the yellow 16-letter code.
+                  </p>
+                </div>
+
+                <p>
+                  <b>3. Enter Credentials Below:</b> In <b>Email / Username</b>, enter your full Gmail address (e.g. <code>you@gmail.com</code>). In <b>Password</b>, paste the 16-character app password.
+                </p>
+              </div>
+
+              <div className="pt-1.5 border-t border-[#F2DEB0] flex items-center justify-between text-[10px] text-[#78350F]">
+                <span className="flex items-center gap-1">
+                  <FiAlertTriangle className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                  <span>Your normal account login password will be rejected by Google SMTP.</span>
+                </span>
+                <a
+                  href="https://support.google.com/accounts/answer/185833"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold hover:underline flex items-center gap-0.5 text-[#B45309]"
+                >
+                  <span>Help Doc</span>
+                  <FiExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {preset === 'brevo' && (
+            <div id="brevoGuideBox" className="p-3.5 clay-inset bg-[#F0FDF4] border border-[#BBF0C5] rounded-xl space-y-2.5 text-xs text-[#1A1A1A]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-[#15803D]">
+                  <FiZap className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
+                  <span>Brevo (Sendinblue) Setup Guide (Recommended for Bulk)</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-[#DCFCE7] text-[#166534] px-2 py-0.5 rounded-full border border-[#86EFAC]">
+                  Free 300 Emails/Day
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] text-[#333333] leading-relaxed">
+                <p>
+                  <b>1. Create a Free Brevo Account (if you don&apos;t have one):</b>
+                </p>
+                <div className="pl-4">
+                  <a
+                    href="https://www.brevo.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#15803D] hover:underline"
+                  >
+                    <span>Visit Brevo.com (Free Sign Up)</span>
+                    <FiExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <p>
+                  <b>2. Copy Your SMTP Key:</b> Go directly to your Brevo SMTP Keys dashboard.
+                </p>
+                <div className="pl-4 space-y-1">
+                  <a
+                    href="https://app.brevo.com/settings/keys/smtp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#15803D] bg-white px-2 py-0.5 rounded border border-green-300 hover:bg-green-50"
+                  >
+                    <FiKey className="w-3 h-3" />
+                    <span>Open Brevo SMTP Credentials Page</span>
+                    <FiExternalLink className="w-3 h-3" />
+                  </a>
+                  <p className="text-[10px] text-[#666666]">
+                    Click <b>Generate a new SMTP key</b> or copy your <b>Master SMTP Key</b>.
+                  </p>
+                </div>
+
+                <p>
+                  <b>3. Paste into the fields below:</b> In <b>Email / Username</b>, enter your Brevo account email. In <b>Password</b>, paste your Brevo SMTP Key.
+                </p>
+              </div>
+
+              <div className="pt-1.5 border-t border-[#BBF0C5] text-[10px] text-[#166534]">
+                <span>Pre-configured: Host <code>smtp-relay.brevo.com</code> &bull; Port <code>587</code> &bull; STARTTLS.</span>
+              </div>
+            </div>
+          )}
+
+          {preset === 'resend' && (
+            <div id="resendGuideBox" className="p-3.5 clay-inset bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl space-y-2.5 text-xs text-[#1A1A1A]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-[#0F172A]">
+                  <FiZap className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Resend Developer Relay Setup Guide</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
+                  Free 3,000 Emails/Mo
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] text-[#334155] leading-relaxed">
+                <p>
+                  <b>1. Create an API Key in Resend:</b>
+                </p>
+                <div className="pl-4 space-y-1">
+                  <a
+                    href="https://resend.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-blue-700 hover:underline"
+                  >
+                    <span>Open Resend API Keys Dashboard</span>
+                    <FiExternalLink className="w-3 h-3" />
+                  </a>
+                  <p className="text-[10px] text-[#64748B]">
+                    Click <b>Create API Key</b> with &quot;Sending access&quot; permission and copy the <code>re_...</code> key.
+                  </p>
+                </div>
+
+                <p>
+                  <b>2. Fill in the credentials below:</b>
+                </p>
+                <ul className="list-disc pl-5 text-[10px] space-y-0.5 text-[#475569]">
+                  <li><b>Email / Username:</b> <code>resend</code> (the exact word &quot;resend&quot;)</li>
+                  <li><b>Password:</b> Your Resend API Key (starts with <code>re_</code>)</li>
+                  <li><b>Host &amp; Port:</b> Preconfigured to <code>smtp.resend.com:465</code> (SSL)</li>
+                </ul>
+              </div>
+
+              <div className="pt-1.5 border-t border-[#CBD5E1] flex items-center justify-between text-[10px] text-[#475569]">
+                <span>Requires a verified sending domain in Resend for external recipients.</span>
+                <a
+                  href="https://resend.com/docs/dashboard/emails/send-emails-with-smtp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-blue-700 hover:underline flex items-center gap-0.5"
+                >
+                  <span>Resend SMTP Docs</span>
+                  <FiExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {preset === 'outlook' && (
+            <div id="outlookGuideBox" className="p-3.5 clay-inset bg-[#F0F9FF] border border-[#BAE6FD] rounded-xl space-y-2.5 text-xs text-[#1A1A1A]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-[#0369A1]">
+                  <FiMail className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Microsoft Outlook / Office 365 Setup Guide</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-[#E0F2FE] text-[#075985] px-2 py-0.5 rounded-full border border-[#BAE6FD]">
+                  Port 587 STARTTLS
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] text-[#334155] leading-relaxed">
+                <p>
+                  <b>For Personal Accounts (@outlook.com / @hotmail.com):</b>
+                </p>
+                <div className="pl-4 space-y-1">
+                  <a
+                    href="https://account.live.com/proofs/manage/additional"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#0284C7] hover:underline"
+                  >
+                    <span>Open Microsoft Security &amp; App Passwords</span>
+                    <FiExternalLink className="w-3 h-3" />
+                  </a>
+                  <p className="text-[10px] text-[#64748B]">
+                    Enable Two-Step Verification, scroll down to <b>App passwords</b>, click <b>Create a new app password</b>, and paste it below.
+                  </p>
+                </div>
+
+                <p>
+                  <b>For School / Work Microsoft 365 Accounts:</b>
+                </p>
+                <div className="pl-4 space-y-1">
+                  <p className="text-[10px] text-[#64748B]">
+                    Your IT admin must enable <b>Authenticated SMTP</b> in the Microsoft 365 Admin Center under <i>Active Users &gt; Mail &gt; Manage email apps &gt; Authenticated SMTP</i>.
+                  </p>
+                  <a
+                    href="https://admin.microsoft.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0284C7] hover:underline"
+                  >
+                    <span>Microsoft 365 Admin Center</span>
+                    <FiExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="pt-1.5 border-t border-[#BAE6FD] text-[10px] text-[#075985]">
+                <a
+                  href="https://support.microsoft.com/en-us/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold hover:underline flex items-center gap-0.5"
+                >
+                  <span>Read Official Microsoft POP/IMAP/SMTP Settings Guide</span>
+                  <FiExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {preset === 'yahoo' && (
+            <div id="yahooGuideBox" className="p-3.5 clay-inset bg-[#FAF5FF] border border-[#E9D5FF] rounded-xl space-y-2.5 text-xs text-[#1A1A1A]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-[#7E22CE]">
+                  <FiKey className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Yahoo Mail Setup Guide</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-[#F3E8FF] text-[#6B21A8] px-2 py-0.5 rounded-full border border-[#D8B4FE]">
+                  App Password Required
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] text-[#4C1D95] leading-relaxed">
+                <p>
+                  <b>1. Open Yahoo Account Security:</b>
+                </p>
+                <div className="pl-4">
+                  <a
+                    href="https://login.yahoo.com/account/security"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#7E22CE] hover:underline"
+                  >
+                    <span>Open Yahoo Account Security Settings</span>
+                    <FiExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <p>
+                  <b>2. Generate an App Password:</b> Scroll to <b>Generate app password</b> &rarr; enter <code>Certificate Studio</code> &rarr; click <b>Generate</b> &rarr; copy the password and paste it into the Password field below.
+                </p>
+              </div>
+
+              <div className="pt-1.5 border-t border-[#E9D5FF] text-[10px] text-[#6B21A8]">
+                <a
+                  href="https://help.yahoo.com/kb/SLN15241.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold hover:underline flex items-center gap-0.5"
+                >
+                  <span>Official Yahoo App Password Documentation</span>
+                  <FiExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {preset === 'sendgrid' && (
+            <div id="sendgridGuideBox" className="p-3.5 clay-inset bg-[#F0FDF4] border border-[#BBF0C5] rounded-xl space-y-2.5 text-xs text-[#1A1A1A]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-[#15803D]">
+                  <FiKey className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>SendGrid (Twilio) Setup Guide</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-[#DCFCE7] text-[#166534] px-2 py-0.5 rounded-full border border-[#86EFAC]">
+                  Free 100/Day
+                </span>
+              </div>
+
+              <div className="space-y-1.5 text-[11px] text-[#333333] leading-relaxed">
+                <p>
+                  <b>1. Generate an API Key in SendGrid:</b>
+                </p>
+                <div className="pl-4 space-y-1">
+                  <a
+                    href="https://app.sendgrid.com/settings/api_keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#15803D] hover:underline"
+                  >
+                    <span>Open SendGrid API Keys Dashboard</span>
+                    <FiExternalLink className="w-3 h-3" />
+                  </a>
+                  <p className="text-[10px] text-[#666666]">
+                    Click <b>Create API Key</b> &rarr; select <b>Full Access</b> or <b>Mail Send</b> permission &rarr; copy the key starting with <code>SG.</code>
+                  </p>
+                </div>
+
+                <p>
+                  <b>2. Enter Credentials:</b>
+                </p>
+                <ul className="list-disc pl-5 text-[10px] space-y-0.5 text-[#555555]">
+                  <li><b>Email / Username:</b> <code>apikey</code> (the exact string &quot;apikey&quot;)</li>
+                  <li><b>Password:</b> Your SendGrid API Key (starts with <code>SG.</code>)</li>
+                  <li><b>Host &amp; Port:</b> Preconfigured to <code>smtp.sendgrid.com:587</code></li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {preset === 'custom' && (
+            <div id="customGuideBox" className="p-3.5 clay-inset bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl space-y-2 text-xs text-[#1A1A1A]">
+              <div className="flex items-center gap-1.5 font-bold text-[#334155]">
+                <FiSettings className="w-3.5 h-3.5" />
+                <span>Custom SMTP Server Setup</span>
+              </div>
+              <p className="text-[11px] text-[#64748B] leading-relaxed">
+                Enter the SMTP Host and credentials provided by your hosting provider, university server, or transactional provider. Standard ports are <b>465 (SSL)</b> or <b>587 (STARTTLS)</b>.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1 text-[10px]">
+                <a
+                  href="https://docs.aws.amazon.com/ses/latest/dg/smtp-credentials.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-0.5 bg-white border border-[#CBD5E1] rounded text-[#0F172A] font-bold hover:bg-slate-50 inline-flex items-center gap-1"
+                >
+                  <span>Amazon SES Guide</span>
+                  <FiExternalLink className="w-2.5 h-2.5" />
+                </a>
+                <a
+                  href="https://documentation.mailgun.com/docs/mailgun/user-manual/sending-messages/#sending-via-smtp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-0.5 bg-white border border-[#CBD5E1] rounded text-[#0F172A] font-bold hover:bg-slate-50 inline-flex items-center gap-1"
+                >
+                  <span>Mailgun Guide</span>
+                  <FiExternalLink className="w-2.5 h-2.5" />
+                </a>
+                <a
+                  href="https://postmarkapp.com/developer/user-guide/send-email-with-smtp"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-0.5 bg-white border border-[#CBD5E1] rounded text-[#0F172A] font-bold hover:bg-slate-50 inline-flex items-center gap-1"
+                >
+                  <span>Postmark Guide</span>
+                  <FiExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* EXPANDABLE DIRECTORY OF ALL PROVIDER URLS & DAILY LIMITS  */}
+          {/* ========================================================= */}
+          {showAllGuides && (
+            <div className="p-3.5 rounded-xl border border-[#D72638]/30 bg-[#FEF2F2] space-y-3 text-xs">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#FCA5A5]">
+                <span className="font-bold text-[#991B1B] flex items-center gap-1.5">
+                  <FiBookOpen className="w-4 h-4 text-[#D72638]" />
+                  <span>All Email Providers Quick-Reference &amp; URLs</span>
+                </span>
+                <span className="text-[10px] text-[#7F1D1D] font-mono">Direct Links Directory</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div className="p-2 bg-white rounded-lg border border-[#FCA5A5]/60 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#1A1A1A]">Gmail (Google)</span>
+                    <span className="text-[9px] font-mono bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">500 / day</span>
+                  </div>
+                  <p className="text-[10px] text-[#666666]">Host: smtp.gmail.com:465 (SSL)</p>
+                  <a
+                    href="https://myaccount.google.com/apppasswords"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-bold text-[#D72638] hover:underline flex items-center gap-1"
+                  >
+                    <span>Get Google App Password</span>
+                    <FiExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+
+                <div className="p-2 bg-white rounded-lg border border-green-200 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#1A1A1A]">Brevo (Sendinblue)</span>
+                    <span className="text-[9px] font-mono bg-green-50 text-green-800 px-1.5 py-0.2 rounded border border-green-200">Free 300 / day</span>
+                  </div>
+                  <p className="text-[10px] text-[#666666]">Host: smtp-relay.brevo.com:587</p>
+                  <a
+                    href="https://app.brevo.com/settings/keys/smtp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-bold text-green-700 hover:underline flex items-center gap-1"
+                  >
+                    <span>Get Brevo SMTP Key</span>
+                    <FiExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+
+                <div className="p-2 bg-white rounded-lg border border-blue-200 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#1A1A1A]">Resend</span>
+                    <span className="text-[9px] font-mono bg-blue-50 text-blue-800 px-1.5 py-0.2 rounded border border-blue-200">Free 3,000 / mo</span>
+                  </div>
+                  <p className="text-[10px] text-[#666666]">Host: smtp.resend.com:465</p>
+                  <a
+                    href="https://resend.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-bold text-blue-700 hover:underline flex items-center gap-1"
+                  >
+                    <span>Get Resend API Key</span>
+                    <FiExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+
+                <div className="p-2 bg-white rounded-lg border border-sky-200 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#1A1A1A]">Outlook / M365</span>
+                    <span className="text-[9px] font-mono bg-sky-50 text-sky-800 px-1.5 py-0.2 rounded border border-sky-200">Standard</span>
+                  </div>
+                  <p className="text-[10px] text-[#666666]">Host: smtp.office365.com:587</p>
+                  <a
+                    href="https://account.live.com/proofs/manage/additional"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-bold text-sky-700 hover:underline flex items-center gap-1"
+                  >
+                    <span>Microsoft App Passwords</span>
+                    <FiExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* SMTP CREDENTIALS FORM INPUTS                              */}
+          {/* ========================================================= */}
+          <div className="grid grid-cols-2 gap-3 text-xs pt-1">
             <div className="col-span-2">
-              <label className="block font-bold text-[#1A1A1A] mb-1">Sender Name (Display Name)</label>
+              <label className="block font-bold text-[#1A1A1A] mb-1">Sender Name (Display Name on Sent Emails)</label>
               <input
                 type="text"
                 id="smtpSenderName"
                 value={form.senderName}
-                placeholder="e.g. Acme Academy"
+                placeholder="e.g. ACM Student Chapter or Acme Academy"
                 onChange={e => setForm({ ...form, senderName: e.target.value })}
                 className="w-full clay-inset p-2.5 font-medium"
               />
@@ -173,7 +742,7 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
                 value={form.host}
                 placeholder="smtp.gmail.com"
                 onChange={e => setForm({ ...form, host: e.target.value })}
-                className="w-full clay-inset p-2.5 font-medium"
+                className="w-full clay-inset p-2.5 font-medium font-mono text-[11px]"
               />
             </div>
             <div>
@@ -184,11 +753,11 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
                 value={form.port}
                 placeholder="465 or 587"
                 onChange={e => setForm({ ...form, port: Number(e.target.value) })}
-                className="w-full clay-inset p-2.5 font-medium"
+                className="w-full clay-inset p-2.5 font-medium font-mono text-[11px]"
               />
             </div>
             <div>
-              <label className="block font-bold text-[#1A1A1A] mb-1">SSL/TLS</label>
+              <label className="block font-bold text-[#1A1A1A] mb-1">SSL / TLS Protocol</label>
               <ClayDropdown
                 id="smtpSecure"
                 value={form.secure ? 'true' : 'false'}
@@ -200,71 +769,107 @@ export function SmtpModal({ isOpen, onClose, smtpConfig, onSave, onLog }: SmtpMo
               />
             </div>
             <div className="col-span-2">
-              <label className="block font-bold text-[#1A1A1A] mb-1">Email / Username</label>
+              <label className="block font-bold text-[#1A1A1A] mb-1">
+                Email / Username <span className="font-normal text-[#666666]">(Your sending email or API user)</span>
+              </label>
               <input
                 type="email"
                 id="smtpUser"
                 value={form.user}
-                placeholder="your-email@gmail.com"
+                placeholder={preset === 'resend' ? 'resend' : preset === 'sendgrid' ? 'apikey' : 'your-email@gmail.com'}
                 onChange={e => setForm({ ...form, user: e.target.value })}
                 className="w-full clay-inset p-2.5 font-medium"
               />
             </div>
-            <div className="col-span-2">
-              <label className="block font-bold text-[#1A1A1A] mb-1">Password / App Password</label>
+            <div className="col-span-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="block font-bold text-[#1A1A1A]">
+                  Password / App Password / Key
+                </label>
+                {hasSpacesInPass && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, pass: prev.pass.replace(/\s+/g, '') }))}
+                    className="text-[10px] font-bold text-[#D72638] bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded border border-red-200 transition"
+                  >
+                    Remove Spaces (Clean 16-char code)
+                  </button>
+                )}
+              </div>
               <input
                 type="password"
                 id="smtpPass"
                 value={form.pass}
-                placeholder="••••••••••••••••"
+                placeholder={preset === 'gmail' ? '16-character Google App Password' : '••••••••••••••••'}
                 onChange={e => setForm({ ...form, pass: e.target.value })}
-                className="w-full clay-inset p-2.5 font-medium"
+                className="w-full clay-inset p-2.5 font-medium font-mono"
               />
+              {hasSpacesInPass && preset === 'gmail' && (
+                <p className="text-[10px] text-amber-700 font-semibold flex items-center gap-1">
+                  <FiInfo className="w-3 h-3 flex-shrink-0" />
+                  <span>Google App Passwords have spaces when copied. They will be auto-cleaned upon testing and saving.</span>
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Test Connection Section */}
-          <div className="pt-3 border-t border-[#E0DEDA] flex items-center space-x-2">
-            <input
-              type="email"
-              id="smtpTestRecipient"
-              placeholder="Send test email to (optional)"
-              value={testEmail}
-              onChange={e => setTestEmail(e.target.value)}
-              className="flex-1 text-xs clay-inset p-2.5 font-medium"
-            />
-            <Tooltip content="Send test handshake to verify server and port accessibility" position="top">
-              <button
-                type="button"
-                id="btnTestSmtp"
-                onClick={handleTestConnection}
-                disabled={isTesting}
-                className="px-4 py-2.5 clay-btn-dark font-bold text-xs whitespace-nowrap"
-              >
-                {isTesting ? 'Testing...' : 'Test Connection'}
-              </button>
-            </Tooltip>
+          {/* ========================================================= */}
+          {/* TEST CONNECTION SECTION                                  */}
+          {/* ========================================================= */}
+          <div className="pt-3 border-t border-[#E0DEDA] space-y-2">
+            <label className="block text-[11px] font-bold text-[#1A1A1A]">
+              Test Connection &amp; Send Handshake:
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="email"
+                id="smtpTestRecipient"
+                placeholder="Send a test certificate to (e.g. you@example.com)"
+                value={testEmail}
+                onChange={e => setTestEmail(e.target.value)}
+                className="flex-1 text-xs clay-inset p-2.5 font-medium"
+              />
+              <Tooltip content="Send an authentication handshake to verify server and port connectivity" position="top">
+                <button
+                  type="button"
+                  id="btnTestSmtp"
+                  onClick={handleTestConnection}
+                  disabled={isTesting}
+                  className="px-4 py-2.5 clay-btn-dark font-bold text-xs whitespace-nowrap flex items-center gap-1.5 shadow"
+                >
+                  <FiSend className="w-3 h-3" />
+                  <span>{isTesting ? 'Verifying...' : 'Test Connection'}</span>
+                </button>
+              </Tooltip>
+            </div>
           </div>
 
-          <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#E0DEDA]">
-            <button
-              type="button"
-              id="btnCancelSmtpModal"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition"
-            >
-              Cancel
-            </button>
-            <Tooltip content="Apply and save SMTP configuration" position="top">
+          {/* Modal Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-[#E0DEDA]">
+            <span className="text-[10px] text-[#666666]">
+              {preset === 'simulation' ? '🧪 Mock mode active' : `⚡ Provider: ${preset}`}
+            </span>
+            <div className="flex items-center space-x-2">
               <button
                 type="button"
-                id="btnSaveSmtpSettings"
-                onClick={handleSave}
-                className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow"
+                id="btnCancelSmtpModal"
+                onClick={onClose}
+                className="px-4 py-2 text-xs font-bold text-[#555555] hover:text-[#1A1A1A] transition"
               >
-                Save Settings
+                Cancel
               </button>
-            </Tooltip>
+              <Tooltip content="Apply and save SMTP configuration to event" position="top">
+                <button
+                  type="button"
+                  id="btnSaveSmtpSettings"
+                  onClick={handleSave}
+                  className="px-5 py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center gap-1.5"
+                >
+                  <FiCheck className="text-sm" />
+                  <span>Save Configuration</span>
+                </button>
+              </Tooltip>
+            </div>
           </div>
         </div>
       </div>

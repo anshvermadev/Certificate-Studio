@@ -440,7 +440,7 @@ export default function BulkDispatch({
                     : `Delivering via ${smtpConfig.user}`}
                 </p>
               </div>
-              <Tooltip content={isMockOrIncomplete ? 'Configure SMTP credentials' : 'Edit sender credentials'} position="top">
+              <Tooltip content={isMockOrIncomplete ? 'Configure SMTP credentials & open provider setup guide' : 'Edit sender credentials & open provider setup guide'} position="top">
                 <button
                   type="button"
                   id="btnConfigureSmtpBanner"
@@ -451,7 +451,7 @@ export default function BulkDispatch({
                       : 'clay-btn-secondary'
                   }`}
                 >
-                  {isMockOrIncomplete ? 'Setup SMTP' : 'Edit'}
+                  {isMockOrIncomplete ? 'Setup SMTP & Guide' : 'SMTP Config / Guide'}
                 </button>
               </Tooltip>
             </div>
