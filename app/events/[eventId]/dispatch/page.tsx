@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useEvent } from '@/context/EventContext';
 import BulkDispatch from '@/components/BulkDispatch';
 import { SmtpModal, EmailTemplateModal } from '@/components/Modals';
 import { generateCertificatePdf } from '@/lib/pdf';
 import { Recipient, EmailTemplate } from '@/types';
+import { reconcileSentStatusFromLogs } from '@/lib/reconcile';
 import { FiArrowLeft, FiGrid } from 'react-icons/fi';
 import Tooltip from '@/components/Tooltip';
 
@@ -23,6 +24,18 @@ export default function EventDispatchPage() {
 
   const [isSmtpModalOpen, setIsSmtpModalOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+
+  // Automatically reconcile sent statuses on mount if dispatch logs show certificates were delivered
+  useEffect(() => {
+    if (event) {
+      const { updated, count, newRecipients } = reconcileSentStatusFromLogs(event);
+      if (updated) {
+        updateEvent({ recipients: newRecipients });
+        saveNow();
+        addLog(`Synchronized ${count} recipient statuses from dispatch activity logs.`, 'success');
+      }
+    }
+  }, [event?.id]);
 
   if (!event) return null;
 
@@ -55,12 +68,14 @@ export default function EventDispatchPage() {
         updateEvent(prev => ({
           recipients: (prev.recipients || []).map(r => r.id === recipient.id ? { ...r, status: 'Sent' } : r)
         }));
+        await saveNow();
         addLog(`Delivered certificate to ${recipient.name} (${recipient.email})`, 'success');
         return true;
       } else {
         updateEvent(prev => ({
           recipients: (prev.recipients || []).map(r => r.id === recipient.id ? { ...r, status: 'Failed' } : r)
         }));
+        await saveNow();
         addLog(`Failed for ${recipient.name} (${recipient.email}): ${data.error || 'Delivery failed'}`, 'error');
         return false;
       }
@@ -68,6 +83,7 @@ export default function EventDispatchPage() {
       updateEvent(prev => ({
         recipients: (prev.recipients || []).map(r => r.id === recipient.id ? { ...r, status: 'Failed' } : r)
       }));
+      await saveNow();
       addLog(`Error sending to ${recipient.name}: ${err.message}`, 'error');
       return false;
     }
@@ -98,6 +114,17 @@ export default function EventDispatchPage() {
       };
     });
     await saveNow();
+  };
+
+  const handleResetStatusesToReady = async () => {
+    if (!window.confirm('Reset all recipient statuses back to "Ready"? This will allow resending certificates to everyone.')) {
+      return;
+    }
+    updateEvent(prev => ({
+      recipients: (prev.recipients || []).map(r => ({ ...r, status: 'Ready' as const }))
+    }));
+    await saveNow();
+    addLog('All recipient statuses reset to Ready.', 'info');
   };
 
   return (
@@ -142,6 +169,7 @@ export default function EventDispatchPage() {
         onSendIndividualEmail={handleSendIndividualEmail}
         onGeneratePdfDataUri={handleGeneratePdfDataUri}
         onBulkSendComplete={handleBulkSendComplete}
+        onResetStatuses={handleResetStatusesToReady}
         onOpenSmtpModal={() => setIsSmtpModalOpen(true)}
         onOpenTemplateModal={() => setIsTemplateModalOpen(true)}
         emailTemplate={event.emailTemplate}

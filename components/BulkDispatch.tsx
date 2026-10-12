@@ -4,7 +4,22 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Recipient, LogEntry, SmtpConfig, EmailTemplate } from '@/types';
 import JSZip from 'jszip';
 import Tooltip from './Tooltip';
-import { FiMail, FiCheck, FiSend, FiCheckCircle, FiInfo, FiPackage, FiDownload, FiLoader, FiAlertCircle, FiAlertTriangle } from 'react-icons/fi';
+import {
+  FiMail,
+  FiCheck,
+  FiSend,
+  FiCheckCircle,
+  FiInfo,
+  FiPackage,
+  FiDownload,
+  FiLoader,
+  FiAlertCircle,
+  FiAlertTriangle,
+  FiPlay,
+  FiRefreshCw,
+  FiZap,
+  FiShield
+} from 'react-icons/fi';
 import { TbFlask } from 'react-icons/tb';
 
 interface BulkDispatchProps {
@@ -16,6 +31,7 @@ interface BulkDispatchProps {
   onSendIndividualEmail: (recipient: Recipient) => Promise<any>;
   onGeneratePdfDataUri: (recipient: Recipient) => Promise<{ filename: string; dataUrl: string }>;
   onBulkSendComplete?: (sentIds: Set<number>, failedIds: Set<number>) => Promise<void> | void;
+  onResetStatuses?: () => void;
   onOpenSmtpModal: () => void;
   onOpenTemplateModal?: () => void;
   emailTemplate: EmailTemplate;
@@ -31,6 +47,7 @@ export default function BulkDispatch({
   onSendIndividualEmail,
   onGeneratePdfDataUri,
   onBulkSendComplete,
+  onResetStatuses,
   onOpenSmtpModal,
   onOpenTemplateModal,
   emailTemplate,
@@ -38,13 +55,48 @@ export default function BulkDispatch({
 }: BulkDispatchProps) {
   const [delayMs, setDelayMs] = useState<number>(1500);
   const [isSending, setIsSending] = useState<boolean>(false);
+  const [skipAlreadySent, setSkipAlreadySent] = useState<boolean>(true);
+  const [isWakeLockActive, setIsWakeLockActive] = useState<boolean>(false);
   const [progressStatus, setProgressStatus] = useState<string>('Ready to start');
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [isZipping, setIsZipping] = useState<boolean>(false);
   const [logFilter, setLogFilter] = useState<'all' | 'dispatch' | 'error'>('all');
   const [showBodyPreview, setShowBodyPreview] = useState<boolean>(false);
   const cancelRef = useRef<boolean>(false);
+  const wakeLockRef = useRef<any>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  // Screen Wake Lock helper to prevent laptop sleeping during dispatch
+  const acquireWakeLock = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && 'wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        setIsWakeLockActive(true);
+        onLog('⚡ Screen wake lock acquired: laptop sleep is prevented while dispatch is running.', 'info');
+        wakeLockRef.current.addEventListener?.('release', () => {
+          setIsWakeLockActive(false);
+        });
+      }
+    } catch (err: any) {
+      console.warn('[WakeLock] Unable to acquire screen wake lock:', err.message);
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+      } catch (err) {}
+      wakeLockRef.current = null;
+      setIsWakeLockActive(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      releaseWakeLock();
+    };
+  }, []);
 
   useEffect(() => {
     if (terminalEndRef.current) {
@@ -52,44 +104,74 @@ export default function BulkDispatch({
     }
   }, [logs, logFilter]);
 
+  // Derived counts
+  const totalCount = recipients.length;
+  const sentCountTotal = recipients.filter(r => r.status === 'Sent').length;
+  const failedCountTotal = recipients.filter(r => r.status === 'Failed').length;
+  const remainingCount = totalCount - sentCountTotal;
+
   const startBulkSend = async () => {
     if (recipients.length === 0) {
       alert('No recipients in the list to send certificates to.');
       return;
     }
 
+    // Determine target queue based on skipAlreadySent setting
+    const queue = skipAlreadySent
+      ? recipients.filter(r => r.status !== 'Sent')
+      : [...recipients];
+
+    if (queue.length === 0) {
+      alert(`All ${recipients.length} certificates have already been delivered! To resend, uncheck "Skip already sent" or click "Reset all to Ready".`);
+      return;
+    }
+
     setIsSending(true);
     cancelRef.current = false;
-    const total = recipients.length;
-    let sentCount = 0;
-    let failedCount = 0;
+    await acquireWakeLock();
+
+    const queueTotal = queue.length;
+    let sessionSent = 0;
+    let sessionFailed = 0;
     const sentIds = new Set<number>();
     const failedIds = new Set<number>();
 
-    onLog(`Initiating bulk send for ${total} recipients with ${delayMs}ms delay...`, 'info');
+    const previouslySent = recipients.length - queueTotal;
+    if (previouslySent > 0 && skipAlreadySent) {
+      onLog(`Resuming dispatch: Skipping ${previouslySent} already sent recipients. Dispatching to remaining ${queueTotal} recipients with ${delayMs}ms delay...`, 'info');
+    } else {
+      onLog(`Initiating bulk send for ${queueTotal} recipients with ${delayMs}ms throttle delay...`, 'info');
+    }
 
-    for (let i = 0; i < total; i++) {
+    for (let i = 0; i < queueTotal; i++) {
       if (cancelRef.current) {
-        onLog('Bulk dispatch aborted.', 'warning');
+        onLog('Bulk dispatch paused/aborted by user. All sent certificates remain saved.', 'warning');
         break;
       }
 
-      const recipient = recipients[i];
-      setProgressStatus(`Sending ${i + 1} of ${total}: ${recipient.name}...`);
+      const recipient = queue[i];
+      const overallIndex = previouslySent + i + 1;
+      setProgressStatus(`Sending ${i + 1} of ${queueTotal} (${recipient.name})... [Total: ${overallIndex}/${recipients.length}]`);
 
-      const success = await onSendIndividualEmail(recipient);
-      if (success) {
-        sentCount++;
-        sentIds.add(recipient.id);
-      } else {
-        failedCount++;
+      try {
+        const success = await onSendIndividualEmail(recipient);
+        if (success) {
+          sessionSent++;
+          sentIds.add(recipient.id);
+        } else {
+          sessionFailed++;
+          failedIds.add(recipient.id);
+        }
+      } catch (err: any) {
+        sessionFailed++;
         failedIds.add(recipient.id);
+        onLog(`Delivery error for ${recipient.name}: ${err.message}`, 'error');
       }
 
-      const pct = Math.round(((i + 1) / total) * 100);
+      const pct = Math.round((overallIndex / recipients.length) * 100);
       setProgressPercent(pct);
 
-      if (i < total - 1 && !cancelRef.current) {
+      if (i < queueTotal - 1 && !cancelRef.current) {
         await new Promise(r => setTimeout(r, delayMs));
       }
     }
@@ -99,14 +181,16 @@ export default function BulkDispatch({
       await onBulkSendComplete(sentIds, failedIds);
     }
 
+    await releaseWakeLock();
     setIsSending(false);
-    setProgressStatus(`Complete! Sent: ${sentCount}, Failed: ${failedCount}`);
-    onLog(`Bulk send completed. ${sentCount} sent, ${failedCount} failed.`, sentCount > 0 ? 'success' : 'warning');
+    setProgressStatus(`Finished! This run: ${sessionSent} sent, ${sessionFailed} failed. Total sent: ${sentCountTotal + sessionSent}/${recipients.length}`);
+    onLog(`Bulk dispatch run finished: ${sessionSent} sent, ${sessionFailed} failed. Total delivered: ${sentCountTotal + sessionSent}/${recipients.length}`, sessionSent > 0 ? 'success' : 'warning');
   };
 
   const stopBulkSend = () => {
     cancelRef.current = true;
-    onLog('Cancellation requested by user. Halting bulk send...', 'warning');
+    releaseWakeLock();
+    onLog('Cancellation requested by user. Halting bulk send... Already delivered certificates remain saved as Sent.', 'warning');
   };
 
   const handleDownloadAllZip = async () => {
@@ -372,11 +456,81 @@ export default function BulkDispatch({
               </Tooltip>
             </div>
 
+            {/* Live Progress & Smart Resume Box */}
+            <div className="p-3 clay-inset space-y-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[#1A1A1A] flex items-center gap-1.5">
+                  <FiShield className="text-[#D72638] w-3.5 h-3.5" />
+                  <span>Dispatch Status:</span>
+                </span>
+                <div className="flex items-center gap-1 text-[11px] font-mono font-bold">
+                  <span className="text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200">
+                    {sentCountTotal} Sent
+                  </span>
+                  {failedCountTotal > 0 && (
+                    <span className="text-red-700 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">
+                      {failedCountTotal} Failed
+                    </span>
+                  )}
+                  <span className="text-[#666666] bg-[#EDEBE8] px-1.5 py-0.5 rounded">
+                    {remainingCount} Left
+                  </span>
+                </div>
+              </div>
+
+              {/* Resume Mode Checkbox */}
+              <label className="flex items-start space-x-2 text-[11px] font-semibold text-[#1A1A1A] cursor-pointer select-none bg-[#FAFAF8] p-2 rounded-lg border border-[#E0DEDA]">
+                <input
+                  type="checkbox"
+                  id="chkSkipAlreadySent"
+                  checked={skipAlreadySent}
+                  onChange={e => setSkipAlreadySent(e.target.checked)}
+                  disabled={isSending}
+                  className="mt-0.5 rounded text-[#D72638] focus:ring-[#D72638] accent-[#D72638]"
+                />
+                <div>
+                  <span className="block font-bold text-[#1A1A1A]">Skip already sent (Smart Resume)</span>
+                  <span className="text-[10px] text-[#666666] font-normal leading-tight">
+                    Never re-sends to recipients marked &quot;Sent&quot;. If interrupted by sleep or closed tab, it picks up right where it stopped.
+                  </span>
+                </div>
+              </label>
+
+              {/* Wake Lock Active Indicator */}
+              {isSending && (
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#15803D] bg-[#EBF8EE] border border-[#BBF0C5] p-1.5 rounded-lg">
+                  <FiZap className="w-3.5 h-3.5 text-amber-500 animate-pulse flex-shrink-0" />
+                  <span>Laptop sleep prevention active. Progress saves live after each email.</span>
+                </div>
+              )}
+
+              {/* Reset to Ready button */}
+              {sentCountTotal > 0 && onResetStatuses && !isSending && (
+                <div className="flex items-center justify-between pt-1 border-t border-[#E0DEDA] text-[10px]">
+                  <span className="text-[#666666]">Want to re-send to everyone?</span>
+                  <button
+                    type="button"
+                    onClick={onResetStatuses}
+                    className="text-[#D72638] hover:underline font-bold flex items-center gap-1"
+                  >
+                    <FiRefreshCw className="w-2.5 h-2.5" />
+                    <span>Reset statuses to Ready</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Configuration summary */}
             <div className="p-3 clay-inset space-y-2 text-xs font-semibold">
               <div className="flex justify-between text-[11px]">
                 <span className="text-[#555555]">Total Recipients:</span>
                 <span id="bulkTotalCount" className="font-bold text-[#1A1A1A]">{recipients.length}</span>
+              </div>
+              <div className="flex justify-between text-[11px]">
+                <span className="text-[#555555]">Queue to Deliver:</span>
+                <span className="font-bold text-[#D72638] font-mono">
+                  {skipAlreadySent ? `${remainingCount} remaining` : `${recipients.length} total`}
+                </span>
               </div>
               <div className="flex justify-between text-[11px]">
                 <span className="text-[#555555]">Attachment Format:</span>
@@ -427,25 +581,61 @@ export default function BulkDispatch({
           {/* Action Buttons */}
           <div className="pt-2">
             {!isSending ? (
-              <Tooltip content="Sequentially generate certificates and email them to each recipient" position="top" className="w-full">
-                <button
-                  type="button"
-                  id="btnStartBulkSend"
-                  onClick={startBulkSend}
-                  className="w-full py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center justify-center space-x-1.5"
+              remainingCount === 0 && skipAlreadySent ? (
+                <div className="space-y-2">
+                  <div className="w-full py-2.5 bg-[#EBF8EE] border border-[#BBF0C5] text-[#15803D] rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 shadow-sm">
+                    <FiCheckCircle className="text-sm text-green-600" />
+                    <span>All {totalCount} Certificates Delivered!</span>
+                  </div>
+                  {onResetStatuses && (
+                    <button
+                      type="button"
+                      onClick={onResetStatuses}
+                      className="w-full py-1.5 clay-btn-secondary text-[11px] font-bold flex items-center justify-center space-x-1"
+                    >
+                      <FiRefreshCw className="text-xs" />
+                      <span>Reset Statuses to Resend Again</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <Tooltip
+                  content={
+                    sentCountTotal > 0 && skipAlreadySent
+                      ? `Skip ${sentCountTotal} already sent certificates and deliver the remaining ${remainingCount}`
+                      : 'Sequentially generate certificates and email them to each recipient'
+                  }
+                  position="top"
+                  className="w-full"
                 >
-                  <FiSend className="text-sm" />
-                  <span>Send All Certificates via Email</span>
-                </button>
-              </Tooltip>
+                  <button
+                    type="button"
+                    id="btnStartBulkSend"
+                    onClick={startBulkSend}
+                    className="w-full py-2.5 clay-btn-primary font-bold text-xs shadow flex items-center justify-center space-x-1.5"
+                  >
+                    {sentCountTotal > 0 && skipAlreadySent ? (
+                      <>
+                        <FiPlay className="text-sm fill-current" />
+                        <span>Resume Dispatch ({remainingCount} Remaining)</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiSend className="text-sm" />
+                        <span>Send All Certificates via Email ({totalCount})</span>
+                      </>
+                    )}
+                  </button>
+                </Tooltip>
+              )
             ) : (
               <button
                 type="button"
                 id="btnStopBulkSend"
                 onClick={stopBulkSend}
-                className="w-full py-2.5 clay-btn-dark font-bold text-xs shadow"
+                className="w-full py-2.5 clay-btn-dark font-bold text-xs shadow flex items-center justify-center space-x-1.5"
               >
-                Stop Dispatch
+                <span>Stop Dispatch (Progress Saved)</span>
               </button>
             )}
           </div>
